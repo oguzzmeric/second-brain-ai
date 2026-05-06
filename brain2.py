@@ -12,7 +12,7 @@ llm = OllamaLLM(model="llama3")
 def ask_brain(query):
     # Güncel veritabanına bağlan
     vectordb = Chroma(persist_directory="chroma_db", embedding_function=embedding)
-    retriever = vectordb.as_retriever(search_kwargs={"k": 6})
+    retriever = vectordb.as_retriever(search_kwargs={"k": 12})
 
     system_prompt = (
         "Sen uzman bir yardımcı asistan ve teknik döküman analizcisisin. "
