@@ -4,6 +4,22 @@ import shutil
 from brain2 import ask_brain
 from ingest2 import run_ingestion
 
+# PROGRAM HER BAŞLADIĞINDA ESKİ VERİLERİ TEMİZLE
+def initial_cleanup():
+    paths_to_clean = ["chroma_db", "data"]
+    for path in paths_to_clean:
+        if os.path.exists(path):
+            try:
+                shutil.rmtree(path)
+                print(f"[SİSTEM] Eski {path} temizlendi.")
+            except Exception as e:
+                print(f"[HATA] {path} silinemedi: {e}")
+
+# Sayfa yüklenmeden önce temizliği yap
+if "cleaned" not in st.session_state:
+    initial_cleanup()
+    st.session_state.cleaned = True
+
 st.set_page_config(page_title="Second Brain AI", layout="wide")
 st.title("🧠 İkinci Beyin: Teknik Analiz Paneli")
 
@@ -15,12 +31,10 @@ with st.sidebar:
     if st.button("Sistemi Güncelle"):
         if uploaded_files:
             with st.spinner("Dosyalar işleniyor..."):
-                # Önce 'data' klasörünü kontrol et ve temizle
-                if os.path.exists("data"):
-                    shutil.rmtree("data")
-                os.makedirs("data")
+                # Data klasörünü hazırla
+                if not os.path.exists("data"):
+                    os.makedirs("data")
                 
-                # Dosyaları site üzerinden klasöre kaydet
                 for f in uploaded_files:
                     with open(os.path.join("data", f.name), "wb") as buffer:
                         buffer.write(f.getbuffer())
@@ -32,7 +46,7 @@ with st.sidebar:
         else:
             st.error("Lütfen önce dosya seçin.")
 
-# SOHBET EKRANI
+# SOHBET EKRANI (Aynı kalıyor)
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -52,4 +66,4 @@ if user_input := st.chat_input("Döküman hakkında sorun nedir?"):
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
             else:
-                st.error("Veritabanı bulunamadı. Lütfen önce döküman yükleyip sistemi güncelleyin.")
+                st.error("Veritabanı bulunamadı. Lütfen döküman yükleyin.")

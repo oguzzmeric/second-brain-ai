@@ -9,17 +9,18 @@ from langchain_core.output_parsers import StrOutputParser
 embedding = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
 llm = OllamaLLM(model="llama3")
 
+
 def ask_brain(query):
     # Güncel veritabanına bağlan
     vectordb = Chroma(persist_directory="chroma_db", embedding_function=embedding)
-    retriever = vectordb.as_retriever(search_kwargs={"k": 12})
-
+    retriever = vectordb.as_retriever(search_kwargs={"k": 6}) 
+    
     system_prompt = (
         "Sen uzman bir yardımcı asistan ve teknik döküman analizcisisin. "
         "Sana sağlanan bağlamı kullanarak soruyu yanıtla.\n\n"
         "1. Sadece bağlamdaki verileri kullan.\n"
         "2. Akıcı bir Türkçe ile cevap ver.\n\n"
-        "3.%100 Türkçe cevap ver"
+        "3.sadece %100 Türkçe cevap ver teknik terimler hariç"
         "Bağlam:\n{context}"
     )
 
