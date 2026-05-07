@@ -33,9 +33,14 @@ def ask_brain(query):
         return "\n\n".join(doc.page_content for doc in docs)
 
     chain = (
-        {"context": retriever | format_docs, "input": RunnablePassthrough()}
-        | prompt | llm | StrOutputParser()
+        {
+            "context": (lambda x: f"query: {x}") | retriever | format_docs, 
+            "input": RunnablePassthrough()
+        }
+        | prompt 
+        | llm 
+        | StrOutputParser()
     )
     
     #E5 prefix 
-    return chain.invoke(f"query: {query}")
+    return chain.stream(query)

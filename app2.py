@@ -60,10 +60,11 @@ if user_input := st.chat_input("Döküman hakkında sorun nedir?"):
         st.markdown(user_input)
 
     with st.chat_message("assistant"):
-        with st.spinner("Cevap aranıyor..."):
+        with st.spinner(" düşünüyorum ..."):
             if os.path.exists("chroma_db"):
-                response = ask_brain(user_input)
-                st.markdown(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                response_stream = ask_brain(user_input)
+                full_response = st.write_stream(response_stream)
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
             else:
-                st.error("Veritabanı bulunamadı. Lütfen döküman yükleyin.")
+                st.warning("Henüz bir döküman yüklenmedi. Lütfen önce PDF dosyalarını yükleyin ve 'Sistemi Güncelle' butonuna basın.")
+

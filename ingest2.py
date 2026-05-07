@@ -6,13 +6,12 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 
 def run_ingestion():
-    # KLASÖR KONTROLÜ BURADA (Fonksiyon çalışınca devreye girer)
     data_dir = "data/"
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
         return "Klasör oluşturuldu, lütfen PDF yükleyin."
     
-    # 9. SATIR BURAYA TAŞINDI: Artık patlamaz
+    
     pdf_files = [f for f in os.listdir(data_dir) if f.endswith(".pdf")]
     
     if not pdf_files:
@@ -26,11 +25,11 @@ def run_ingestion():
         except Exception as e:
             print(f"Hata: {e}")
 
-    # Teknik döküman ayarları (1000/300)
+    # Technical document (1000/300)
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=300)
     chunks = text_splitter.split_documents(all_docs)
     
-    # Asimetrik Arama İçin E5-Base
+    # Asimetrik Arama İçin E5-based
     embedding = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
 
     if os.path.exists("chroma_db"):
