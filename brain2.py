@@ -5,13 +5,13 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
-# Ingest ile aynı model olmalı
+# embeddings and llm setup
 embedding = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
 llm = OllamaLLM(model="llama3")
 
 
 def ask_brain(query):
-    # Güncel veritabanına bağlan
+    # connect to chroma db
     vectordb = Chroma(persist_directory="chroma_db", embedding_function=embedding)
     retriever = vectordb.as_retriever(search_kwargs={"k": 6}) 
     
@@ -37,5 +37,5 @@ def ask_brain(query):
         | prompt | llm | StrOutputParser()
     )
     
-    # E5 Prefix kuralı: 'query: '[cite: 3]
+    #E5 prefix 
     return chain.invoke(f"query: {query}")

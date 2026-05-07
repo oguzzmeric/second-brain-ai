@@ -4,7 +4,7 @@ import shutil
 from brain2 import ask_brain
 from ingest2 import run_ingestion
 
-# PROGRAM HER BAŞLADIĞINDA ESKİ VERİLERİ TEMİZLE
+# clear datasets and db on app start
 def initial_cleanup():
     paths_to_clean = ["chroma_db", "data"]
     for path in paths_to_clean:
@@ -15,7 +15,7 @@ def initial_cleanup():
             except Exception as e:
                 print(f"[HATA] {path} silinemedi: {e}")
 
-# Sayfa yüklenmeden önce temizliği yap
+
 if "cleaned" not in st.session_state:
     initial_cleanup()
     st.session_state.cleaned = True
@@ -23,7 +23,7 @@ if "cleaned" not in st.session_state:
 st.set_page_config(page_title="Second Brain AI", layout="wide")
 st.title("🧠 İkinci Beyin: Teknik Analiz Paneli")
 
-# YAN PANEL: DOSYA YÜKLEME
+# side bar for file upload and ingestion
 with st.sidebar:
     st.header("📂 Dosya Yönetimi")
     uploaded_files = st.file_uploader("PDF dosyalarını yükle", type="pdf", accept_multiple_files=True)
@@ -46,7 +46,7 @@ with st.sidebar:
         else:
             st.error("Lütfen önce dosya seçin.")
 
-# SOHBET EKRANI (Aynı kalıyor)
+# Chat screen
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
