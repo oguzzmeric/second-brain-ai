@@ -1,6 +1,6 @@
+env/
+v2_env/
+.env
 chroma_db/
 data/
 __pycache__/
-env/
-venv/
-evaluate_rag.py
