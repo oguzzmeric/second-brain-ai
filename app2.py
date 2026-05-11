@@ -52,36 +52,63 @@ for msg in st.session_state.messages:
 
 # 4. Kullanıcı Girişi ve Ajan Akışı
 if user_input := st.chat_input("Dökümanların veya internet hakkında sorun nedir?"):
+    # Kullanıcının mesajını ekrana bas ve hafızaya al
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
 
+    # Asistanın cevabı için yer ayır
     with st.chat_message("assistant"):
         full_response = ""
-        # Yazının akacağı kutuyu asistan balonunun içinde oluşturuyoruz
         message_placeholder = st.empty() 
         
         with st.status("🧠 Beyin fırtınası yapılıyor...", expanded=True) as status:
             log_placeholder = st.empty() 
             
+            # Ajanı çalıştır ve gelen parçaları yakala
             for chunk in ask_brain_agent(user_input):
-                # ARA ADIMLAR
-                if "actions" in chunk:
+                
+                # 1. ARA ADIMLAR (Ajan hangi tool'u kullanıyor?)
+                if isinstance(chunk, dict) and "actions" in chunk:
                     for action in chunk["actions"]:
                         log_placeholder.write(f"🔍 **Karar:** `{action.tool}` kullanılıyor...")
                 
-                # NİHAİ CEVAP AKIŞI
-                elif "output" in chunk:
-                    # LangChain stream bazen tüm metni her adımda kümülatif gönderir
-                    full_response = chunk["output"]
-                    # Anlık olarak asistan balonunun içine yazdır (akma efekti)
+                # 2. NİHAİ CEVAP
+                elif isinstance(chunk, dict) and "output" in chunk:
+                    output_data = chunk["output"]
+                    
+                    # Gemini'nin o saçma sapan liste ve imza formatını temizleme
+                    if isinstance(output_data, list):
+                        clean_text = ""
+                        for item in output_data:
+                            if isinstance(item, dict) and 'text' in item:
+                                clean_text += item['text']
+                            elif isinstance(item, str):
+                                clean_text += item
+                        full_response = clean_text
+                    else:
+                        full_response = str(output_data)
+                        
+                    # Yazıyı imleçle (▌) akıyormuş gibi göster
+                    message_placeholder.markdown(full_response + "▌")
+                
+                # 3. YEDEK: Ajan bazen direkt string fırlatır
+                elif isinstance(chunk, str):
+                    full_response += chunk
                     message_placeholder.markdown(full_response + "▌")
             
             status.update(label="✅ Analiz Tamamlandı!", state="complete", expanded=False)
 
-        # Akış bittiğinde imleci kaldır ve son metni sabitçe göster
+        # Akış bitince son kontrolleri yap ve imleci kaldır
         if full_response:
+            # Ufak bir ihtimal o "CmUBDD" zırvası metnin içinde kalmışsa son kez kopar at
+            if "CmUBDD" in full_response:
+                full_response = full_response.split("index': 0},")[-1].strip()
+                # Hala garip liste parantezleri kaldıysa temizle
+                if full_response.startswith("] '"):
+                    full_response = full_response[3:]
+                    
             message_placeholder.markdown(full_response)
             st.session_state.messages.append({"role": "assistant", "content": full_response})
         else:
-            st.error("Ajan bir cevap üretemedi.")
+            st.error("Ajan bir cevap üretemedi. Logları kontrol et.")

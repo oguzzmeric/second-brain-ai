@@ -30,20 +30,19 @@ def run_ingestion():
         except Exception as e:
             print(f"[HATA] {pdf} okunurken sorun çıktı: {e}")
 
-    # 4. Metinleri Parçalara (Chunks) Ayır
-    # Teknik dökümanlar için 1000 karakter idealdir.
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    #chunking 
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=300)
     chunks = text_splitter.split_documents(all_docs)
     
     if not chunks:
         return "Hata: PDF'lerden anlamlı bir metin çıkarılamadı."
 
-    # 5. Embedding Modelini Hazırla
+    # 5. Embedding Model 
     embedding = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
 
     try:
         # 6. Eski Verileri Temizle
-        # Windows kilitlenmelerini önlemek için koleksiyon bazlı temizlik yapıyoruz
+        # Windows kilitlenmeleri yaşadım(çözüm)
         if os.path.exists(db_dir):
             temp_db = Chroma(
                 persist_directory=db_dir, 
@@ -53,7 +52,7 @@ def run_ingestion():
             temp_db.delete_collection()
             print(f"[SİSTEM] '{collection_name}' isimli eski koleksiyon başarıyla silindi.")
         
-        # 7. Yeni Veritabanını Sıfırdan Oluştur
+        # 7. Yeni Veritabanı 
         print(f"[SİSTEM] {len(chunks)} yeni parça veritabanına yazılıyor...")
         Chroma.from_documents(
             documents=chunks,
