@@ -109,10 +109,11 @@ def ask_brain_agent(user_input, db_path="chroma_db"):
 
     # Kritik Kısım: search_local_pdf aracına db_path'i önceden enjekte ediyoruz.
     # Bu sayede Agent, arama yaparken otomatik olarak doğru klasöre bakacak.
-    configured_search_tool = tool(lambda query: search_local_pdf(query, db_path=db_path))
-    configured_search_tool.name = "search_local_pdf"
-    configured_search_tool.description = "Yalnızca yüklü olan teknik dökümanlarda (PDF) detaylı arama yapar."
-
+    @tool
+    def configured_search_tool(query: str) -> str:
+        """Yalnızca yüklü olan teknik dökümanlarda (PDF) detaylı arama yapar."""
+        # Dışarıdaki db_path'i kullanacak
+        return search_local_pdf(query, db_path=db_path)
     # Güncel tool listesi
     current_tools = [configured_search_tool, web_search_tool, read_web_page]
 
