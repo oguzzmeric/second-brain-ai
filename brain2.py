@@ -43,21 +43,22 @@ def read_web_page(url: str) -> str:
         return f"Web sayfası okunurken hata oluştu: {str(e)}"
 
 @tool
-def search_local_pdf(query: str) -> str:
+def search_local_pdf(query: str, db_path: str = "chroma_db") -> str:
     """Yalnızca yüklü olan teknik dökümanlarda (PDF) detaylı arama yapar."""
-    db_dir = "chroma_db"
+    # Artık db_dir sabit değil, db_path üzerinden dinamik geliyor
     collection_name = "second_brain_collection"
     
-    if not os.path.exists(db_dir):
+    if not os.path.exists(db_path):
         return "Hata: Veritabanı bulunamadı. Lütfen önce döküman yükleyin."
     
+    # Kullanıcının kendi izole klasörüne bağlanıyoruz
     vectordb = Chroma(
-        persist_directory=db_dir,
+        persist_directory=db_path,
         embedding_function=embedding,
         collection_name=collection_name
     )
     
-    # Top-K parametresini kota dostu olması için 5 yaptık
+    # Top-K parametresi k=20 olarak korunuyor (Çapraz analiz için kritik)
     retriever = vectordb.as_retriever(search_kwargs={"k": 20})
     docs = retriever.invoke(query)
     
@@ -73,6 +74,7 @@ def search_local_pdf(query: str) -> str:
     else:
         return "Dökümanda bu konuyla ilgili bilgi bulunamadı."
 
+# Burası aynı kalıyor
 tools = [search_local_pdf, web_search_tool, read_web_page]
 
 # --- HİBRİT YÖNLENDİRİCİ (GUARD ROUTE) ---
