@@ -1,5 +1,6 @@
 import os
 import time
+import streamlit as st # Streamlit eklendi
 from functools import partial
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -16,7 +17,15 @@ load_dotenv()
 
 os.environ['USER_AGENT'] = "SecondBrain/1.0"
 
-embedding = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
+# --- BELLEK OPTİMİZASYONU (CACHE) ---
+@st.cache_resource
+def get_embedding_model():
+    """Embedding modelini belleğe bir kez yükler ve orada tutar."""
+    return HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
+
+# Modeli her seferinde baştan oluşturmak yerine cache'den çekiyoruz
+embedding = get_embedding_model()
+# ------------------------------------
 
 llm = ChatOpenAI(
     model="gpt-4o-mini",
