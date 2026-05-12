@@ -14,19 +14,19 @@ from google.api_core.exceptions import ResourceExhausted
 
 load_dotenv()
 
-# Web scraping için user agent
+
 os.environ['USER_AGENT'] = "SecondBrain/1.0"
 
-# 1. Embeddings ve LLM Kurulumu
+
 embedding = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
 
-# Ajan için kullanılacak kusursuz Tool Caller: Gemini
+
 llm = ChatOpenAI(
     model="gpt-4o-mini",
     temperature=0
 )
 
-# 2. Araçların (Tools) Tanımlanması
+
 web_search_tool = DuckDuckGoSearchRun(
     name='web_search_tool',
     description='Hava durumu, güncel haberler veya dökümanlarda BULUNMAYAN genel bilgiler için kullan.'
@@ -79,9 +79,9 @@ tools = [search_local_pdf, web_search_tool, read_web_page]
 def guard_route(user_input):
     """Sorumluluk Reddi: Soruyu analiz eder ve rotayı belirler."""
     
-    # Bekçi de Gemini olsun (Kararlılık için)
+    
     guard_llm = ChatOpenAI(
-        model="gpt-3.5-turbo", #daha hafif bir model kullanarak kota dostu olması sağlanır
+        model="gpt-3.5-turbo",
         temperature=0
     )
 
@@ -99,7 +99,7 @@ def guard_route(user_input):
         decision = guard_llm.invoke(bekci_prompt).content.strip().upper()
         return decision
     except:
-        return "AGENT" # Hata durumunda güvenli taraf olan Agent'ı seç
+        return "AGENT" 
 
 # --- ANA AJAN FONKSİYONU ---
 def ask_brain_agent(user_input):
@@ -125,10 +125,10 @@ def ask_brain_agent(user_input):
         tools=tools,
         verbose=True,
         handle_parsing_errors=True,
-        max_iterations=5 # Kota dostu olması için iterasyon sınırı
+        max_iterations=5 # Kota sınırını korumak için iterasyon sayısını sınırladım
     )
     
-    # Retry Mekanizması (Hata yönetimi için)
+    
     max_retries = 3
     for i in range(max_retries):
         try:

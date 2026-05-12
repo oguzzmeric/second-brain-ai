@@ -7,7 +7,7 @@ from ingest2 import run_ingestion
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 
-# 1. Başlangıç temizliği
+#  temizlik
 def initial_cleanup():
     paths_to_clean = ["chroma_db", "data"]
     for path in paths_to_clean:
@@ -29,14 +29,14 @@ st.info("💡 **MİMARİ NOT:** Bu canlı demo, erişim kolaylığı için Serve
 
 st.title("Second Brain V2 - Agentic RAG 🌐")
 
-# 2. Sidebar (Dosya Limitleri ve Yükleme)
+# 2. Sidebar 
 with st.sidebar:
     st.header("📂 Dosya Yönetimi")
     st.warning("⚠️ **Sistem Stabilitesi:** Kota optimizasyonu nedeniyle aynı anda maksimum **5 adet** PDF yükleyiniz.")
     
     uploaded_files = st.file_uploader("PDF dosyalarını yükle", type="pdf", accept_multiple_files=True)
     
-    # KORUMA KALKANI: 5 Dosyadan fazlasını reddet
+    # 5 sınırı koydum 
     if uploaded_files and len(uploaded_files) > 5:
         st.error("🚨 Lütfen en fazla 5 adet döküman yükleyin!")
         st.stop()
@@ -50,13 +50,13 @@ with st.sidebar:
                     with open(os.path.join("data", f.name), "wb") as buffer:
                         buffer.write(f.getbuffer())
                 mesaj = run_ingestion()
-                st.session_state.messages = []  # Eski sohbet geçmişini temizle
+                st.session_state.messages = []  
                 st.success(mesaj)
                 st.rerun()
         else:
             st.error("Lütfen önce dosya seçin.")
 
-# 3. Sohbet Geçmişi
+# Sohbet Geçmişi
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -64,7 +64,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# 4. Kullanıcı Girişi ve HİBRİT Akış
+#  HİBRİT Akış
 if user_input := st.chat_input("Dökümanların veya internet hakkında sorun nedir?"):
     
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -72,14 +72,12 @@ if user_input := st.chat_input("Dökümanların veya internet hakkında sorun ne
         st.markdown(user_input)
 
     with st.chat_message("assistant"):
-        # --- BEKÇİ (ROUTER) KONTROLÜ ---
         rota = guard_route(user_input)
-        
         if rota == "SIMPLE":
             
             st.toast("⚡ Basit Soru Algılandı: Hızlı model yanıtlıyor...", icon="🚀")
             basit_llm = ChatOpenAI(
-                model="gpt-3.5-turbo", #daha hafif bir model kullanarak kota dostu olması sağlanır
+                model="gpt-3.5-turbo", #kota için minimal bir model seçtim
                 temperature=0.5
                 )
             
@@ -100,12 +98,12 @@ if user_input := st.chat_input("Dökümanların veya internet hakkında sorun ne
                     log_placeholder = st.empty() 
                     
                     for chunk in ask_brain_agent(user_input):
-                        # 1. ARA ADIMLAR
+                        
                         if isinstance(chunk, dict) and "actions" in chunk:
                             for action in chunk["actions"]:
                                 log_placeholder.write(f"🔍 **Karar:** `{action.tool}` kullanılıyor...")
                         
-                        # 2. NİHAİ CEVAP
+                        #CEVAP
                         elif isinstance(chunk, dict) and "output" in chunk:
                             output_data = chunk["output"]
                             
@@ -119,17 +117,14 @@ if user_input := st.chat_input("Dökümanların veya internet hakkında sorun ne
                                 full_response = clean_text
                             else:
                                 full_response = str(output_data)
-                                
                             message_placeholder.markdown(full_response + "▌")
-                        
-                        # 3. YEDEK: String gelirse
                         elif isinstance(chunk, str):
                             full_response += chunk
                             message_placeholder.markdown(full_response + "▌")
                     
                     status.update(label="✅ Analiz Tamamlandı!", state="complete", expanded=False)
 
-                #  CmUBDD temizleme algoritması (Google'ın bazen gereksiz meta verilerle karıştırdığı durumlar için)
+                #  CmUBDD ile başlaya gereksiz verilerden kurtulmak için kontrol ekledim
                 if full_response:
                     if "CmUBDD" in full_response:
                         full_response = full_response.split("index': 0},")[-1].strip()
