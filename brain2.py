@@ -1,34 +1,35 @@
 import os
+import time
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
-from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
+from google.api_core.exceptions import ResourceExhausted
+
 load_dotenv()
-# Web scraping için user agent 
+
+# Web scraping için user agent
 os.environ['USER_AGENT'] = "SecondBrain/1.0"
 
 # 1. Embeddings ve LLM Kurulumu
 embedding = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
 
-load_dotenv()  # .env dosyasını yükle
-
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash", # İşte çalışan güncel model bu!
-    temperature=0.1
+# Ajan için kullanılacak kusursuz Tool Caller: Gemini
+llm = ChatOpenAI(
+    model="gpt-4o-mini",
+    temperature=0
 )
 
 # 2. Araçların (Tools) Tanımlanması
-# İnternet Arama Aracı
 web_search_tool = DuckDuckGoSearchRun(
     name='web_search_tool',
-    description='Hava durumu, güncel haberler veya PDF dökümanlarında BULUNMAYAN genel bilgiler için bu aracı kullan.'
+    description='Hava durumu, güncel haberler veya dökümanlarda BULUNMAYAN genel bilgiler için kullan.'
 )
 
 @tool
@@ -45,60 +46,73 @@ def read_web_page(url: str) -> str:
 def search_local_pdf(query: str) -> str:
     """Yalnızca yüklü olan teknik dökümanlarda (PDF) detaylı arama yapar."""
     db_dir = "chroma_db"
-    #ingest2.py ile aynı koleksiyon ismi olmalı!
     collection_name = "second_brain_collection"
     
     if not os.path.exists(db_dir):
         return "Hata: Veritabanı bulunamadı. Lütfen önce döküman yükleyin."
     
-    # Veritabanına bağlanıyoruz
     vectordb = Chroma(
-        persist_directory=db_dir, 
+        persist_directory=db_dir,
         embedding_function=embedding,
         collection_name=collection_name
     )
     
-    
-    retriever = vectordb.as_retriever(search_kwargs={"k": 6})
+    # Top-K parametresini kota dostu olması için 5 yaptık
+    retriever = vectordb.as_retriever(search_kwargs={"k": 20})
     docs = retriever.invoke(query)
     
-    # Terminal Logları
-    print(f"\n[DEBUG] Arama Sorgusu: {query}")
-    print(f"[DEBUG] Bulunan Parça Sayısı: {len(docs)}")
-    
     if len(docs) > 0:
-        formatted_docs =  []
+        formatted_docs = []
         for doc in docs:
-            content_all_way = doc.metadata.get("source", "bilinmeyen kaynak")
-            doc_name = os.path.basename(content_all_way)
-
+            content_path = doc.metadata.get("source", "bilinmeyen kaynak")
+            doc_name = os.path.basename(content_path)
             page = doc.metadata.get("page", "bilinmeyen sayfa")
             text = doc.page_content
-
             formatted_docs.append(f"[kaynak]:{doc_name} [sayfa]:{page}\n{text}\n")
         return "\n---\n".join(formatted_docs)
     else:
-        return "Dökümanda bu konuyla ilgili hiçbir bilgi bulunamadı."
-
+        return "Dökümanda bu konuyla ilgili bilgi bulunamadı."
 
 tools = [search_local_pdf, web_search_tool, read_web_page]
 
-# 3. Ajan Fonksiyonu
+# --- HİBRİT YÖNLENDİRİCİ (GUARD ROUTE) ---
+def guard_route(user_input):
+    """Sorumluluk Reddi: Soruyu analiz eder ve rotayı belirler."""
+    
+    # Bekçi de Gemini olsun (Kararlılık için)
+    guard_llm = ChatOpenAI(
+        model="gpt-3.5-turbo", #daha hafif bir model kullanarak kota dostu olması sağlanır
+        temperature=0
+    )
+
+    bekci_prompt = f"""
+    Sen bir yönlendirme asistanısın. Kullanıcının sorusunu analiz et.
+    KULLANICI SORUSU: "{user_input}"
+    
+    KURALLAR:
+    1. Eğer soru kompleks bir soru ise "AGENT" dön.
+    2. Eğer soru selamlaşma (merhaba, nasılsın), sistemin ne olduğu veya genel sohbet ise SADECE "SIMPLE" dön.
+    
+    Sadece tek bir kelime dön.
+    """  
+    try:
+        decision = guard_llm.invoke(bekci_prompt).content.strip().upper()
+        return decision
+    except:
+        return "AGENT" # Hata durumunda güvenli taraf olan Agent'ı seç
+
+# --- ANA AJAN FONKSİYONU ---
 def ask_brain_agent(user_input):
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """Sen üst düzey bir teknik analiz asistanısın. 
+        ("system", """Sen üst düzey bir teknik analiz asistanısın.
         
-        İZLEMEN GEREKEN KESİN KURALLAR:
-        1. ÖNCE DÖKÜMAN: Soru ne olursa olsun (özet veya detay), HER ZAMAN önce 'search_local_pdf' aracını kullan ve Verdiğin her bilginin sonuna, o bilgiyi aldığın dökümanın adını ve sayfasını [kaynak]:... [sayfa]:... formatında eklemek ZORUNDASIN.
-        2. İNTERNET YASAK BÖLGESİ: Eğer soru dökümanla/makaleyle/şartnameyle ilgiliyse 'web_search_tool' kullanma.
-        3. DÖKÜMANDA YOKSA: Sadece dökümanda bilgi kesinlikle yoksa veya soru tamamen döküman dışıysa internete bak.
-        4. CEVAP KALİTESİ: Dökümandaki teknik terimleri, sayıları ve görev tanımlarını asla değiştirme.
-        5. REFERANS VER: Cevap verirken her zaman bilginin kaynağını döküman adıyla belirt (Örn: "otonomi_sartnamesi.pdf, 5. sayfaya göre...").
-        6. Çapraz ilişkilendirme yap(farklı kaynaklardaki bilgileri al ve birbirleriyle ilişkilendir ve çıkarım yapabilecek durumlarda bunu yap).
-        7. KARŞILAŞTIRMA VE ÇELİŞKİ FORMATI: Eğer kullanıcı iki farklı versiyonu, yılı, teknolojiyi veya kavramı kıyaslamanı isterse, ASLA düz özet yazma. Cevabını KESİNLİKLE aşağıdaki evrensel şablona göre ver:
-        - [İlk Kavram/Versiyon]: (Dökümandaki durumu ve ilgili kaynak)
-        - [İkinci Kavram/Versiyon]: (Dökümandaki durumu ve ilgili kaynak)
-        8. 'Yeni Teknolojiler ve Ekonomi' gibi alakasız internet sonuçlarını döküman bilgisiymiş gibi sunma."""),
+        İZLEMEN GEREKEN 5 KESİN KURAL:
+        1. ÖNCE DÖKÜMAN: Soru ne olursa olsun, HER ZAMAN önce 'search_local_pdf' kullan.
+        2. İNTERNET YASAK BÖLGESİ: Eğer soru dökümanla/makaleyle ilgiliyse 'web_search_tool' kullanma.
+        3. DÖKÜMANDA YOKSA: Sadece dökümanda bilgi kesinlikle yoksa internete bak.
+        4. CEVAP KALİTESİ: Dökümandaki teknik terimleri ve sayıları asla değiştirme.
+        5. farklı kaynakardaki biligiler arasında bağlantı kurarak cevap üret. Yani sadece dökümandaki bilgiyi vermekle kalma, farklı kaynaklardaki bilgileri birbirleriyle ilişkilendir ve çıkarım yap.,
+        6. ÇAPRAZ İLİŞKİ: Farklı kaynaklardaki bilgileri birbirleriyle ilişkilendir ve çıkarım yap."""),
         ("human", "{input}"),
         ("placeholder", "{agent_scratchpad}"),
     ])
@@ -107,11 +121,21 @@ def ask_brain_agent(user_input):
     agent = create_tool_calling_agent(llm_with_tools, tools, prompt)
     
     agent_executor = AgentExecutor(
-        agent=agent, 
-        tools=tools, 
-        verbose=True, 
+        agent=agent,
+        tools=tools,
+        verbose=True,
         handle_parsing_errors=True,
-        max_iterations=5
+        max_iterations=5 # Kota dostu olması için iterasyon sınırı
     )
-
-    return agent_executor.stream({"input": user_input})
+    
+    # Retry Mekanizması (Hata yönetimi için)
+    max_retries = 3
+    for i in range(max_retries):
+        try:
+            return agent_executor.stream({"input": user_input})
+        except ResourceExhausted:
+            if i < max_retries - 1:
+                print("Kota aşıldı, 1 dakika bekleniyor...")
+                time.sleep(60) # Kota dolduğunda bekle
+                continue
+            raise
