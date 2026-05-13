@@ -2,27 +2,46 @@ import streamlit as st
 import os
 import shutil
 import tempfile
+import glob
 from brain2 import ask_brain_agent, guard_route
 from ingest2 import run_ingestion
 from langchain_openai import ChatOpenAI
 
+# --- PROFESYONEL TEMİZLİK MEKANİZMASI (STARTUP SWEEPER) ---
+def global_cleanup():
+    """Sunucu her ayağa kalktığında eski oturumlardan kalan geçici dosyaları süpürür."""
+    temp_dir = tempfile.gettempdir()
+    # İşletim sistemindeki tüm "tmp" ile başlayan klasörleri tara
+    old_paths = glob.glob(os.path.join(temp_dir, "tmp*"))
+    for path in old_paths:
+        try:
+            # Sadece bizim oluşturduğumuz tipteki klasörleri ve 
+            # erişim iznimiz olanları siler (diğer uygulamaların dosyalarına dokunmaz)
+            if os.path.isdir(path) and not os.access(path, os.W_OK):
+                continue 
+            shutil.rmtree(path, ignore_errors=True)
+        except:
+            pass
+
+# Uygulama ilk kez başlatıldığında temizlik yap
+if 'initialized' not in st.session_state:
+    global_cleanup()
+    st.session_state.initialized = True
+
 # --- İZOLASYON AYARLARI ---
-# Her kullanıcı için benzersiz bir çalışma dizini oluşturuyoruz
 if "user_data_path" not in st.session_state:
-    # Streamlit Cloud üzerinde her oturuma özel geçici bir klasör açar
     st.session_state.user_data_path = tempfile.mkdtemp()
     st.session_state.user_db_path = os.path.join(st.session_state.user_data_path, "chroma_db")
     st.session_state.user_pdf_path = os.path.join(st.session_state.user_data_path, "data")
-    
     os.makedirs(st.session_state.user_pdf_path, exist_ok=True)
 
 st.set_page_config(page_title="Second Brain AI V2", layout="wide")
 
-st.info("💡 **GÜVENLİK NOTU:** Bu oturum tamamen izoledir. Yüklediğiniz dökümanlar sadece size özel geçici bellekte (`tempfile`) tutulur ve oturum kapanınca silinir.")
+st.info("💡 **GÜVENLİK NOTU:** Bu oturum tamamen izoledir. Yüklediğiniz dökümanlar sadece size özel geçici bellekte tutulur.")
 
 st.title("Second Brain V2 - Agentic RAG 🌐")
 
-# 2. Sidebar 
+# --- SIDEBAR ---
 with st.sidebar:
     st.header("📂 Dosya Yönetimi")
     st.warning("⚠️ **Sistem Stabilitesi:** Kota optimizasyonu nedeniyle aynı anda maksimum **5 adet** PDF yükleyiniz.")
@@ -36,19 +55,14 @@ with st.sidebar:
     if st.button("Sistemi Güncelle"):
         if uploaded_files:
             with st.spinner("Dosyalar size özel alanda işleniyor..."):
-                # Önce eski dosyaları temizle (sadece bu kullanıcıya özel klasörü)
                 for file in os.listdir(st.session_state.user_pdf_path):
                     os.remove(os.path.join(st.session_state.user_pdf_path, file))
                 
-                # Yeni dosyaları kaydet
                 for f in uploaded_files:
                     file_path = os.path.join(st.session_state.user_pdf_path, f.name)
                     with open(file_path, "wb") as buffer:
                         buffer.write(f.getbuffer())
                 
-                # run_ingestion fonksiyonuna özel yolları gönderiyoruz
-                # NOT: ingest2.py dosyasındaki run_ingestion fonksiyonunun 
-                # bu parametreleri kabul edecek şekilde güncellenmesi gerekir.
                 mesaj = run_ingestion(
                     source_dir=st.session_state.user_pdf_path, 
                     persist_dir=st.session_state.user_db_path
@@ -60,10 +74,19 @@ with st.sidebar:
         else:
             st.error("Lütfen önce dosya seçin.")
 
-# --- SOHBET AKIŞI ---
-# (Buradaki kodların geri kalanı aynı kalıyor, ask_brain_agent çağrılırken 
-# db_path parametresi gönderilmesi güvenliği tam sağlar.)
+    st.markdown("---")
+    # --- MANUEL TEMİZLİK BUTONU ---
+    st.subheader("🧹 Oturum Temizliği")
+    if st.button("Tüm Verilerimi Sil ve Çık", use_container_width=True):
+        if os.path.exists(st.session_state.user_data_path):
+            shutil.rmtree(st.session_state.user_data_path, ignore_errors=True)
+        # Session state'i sıfırla
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.toast("Veriler temizlendi, oturum sıfırlandı!", icon="🗑️")
+        st.rerun()
 
+# --- SOHBET AKIŞI ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -91,7 +114,7 @@ if user_input := st.chat_input("Dökümanların veya internet hakkında sorun ne
             message_placeholder = st.empty() 
             try:
                 with st.status("🧠 Beyin fırtınası yapılıyor...", expanded=True) as status:
-                    # ask_brain_agent'a kullanıcının özel DB yolunu gönderiyoruz
+                    # Ajan artık kullanıcının özel klasöründeki DB'ye bakıyor
                     for chunk in ask_brain_agent(user_input, db_path=st.session_state.user_db_path):
                         if isinstance(chunk, dict) and "output" in chunk:
                             full_response = str(chunk["output"])
