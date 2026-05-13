@@ -4,6 +4,7 @@ from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
 
 # Dışarıdan klasör yollarını alabilmesi için parametreleri ekledik
 def run_ingestion(source_dir="data/", persist_dir="chroma_db"):
@@ -38,7 +39,7 @@ def run_ingestion(source_dir="data/", persist_dir="chroma_db"):
         return "Hata: PDF'lerden anlamlı bir metin çıkarılamadı."
 
     # 5. Embedding Model 
-    embedding = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
+    embedding = OpenAIEmbeddings(model="text-embedding-3-small")
 
     try:
         # 6. Eski Verileri Temizle (Kullanıcıya özel klasörde)
