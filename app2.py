@@ -28,16 +28,33 @@ if 'initialized' not in st.session_state:
     global_cleanup()
     st.session_state.initialized = True
 
+# --- OTOMATİK İMHA (GARBAGE COLLECTION HACK) ---
+class SessionCleaner:
+    def __init__(self, path_to_clean):
+        self.path_to_clean = path_to_clean
+
+    def __del__(self):
+        """Bu fonksiyon, obje RAM'den silindiğinde (sekme kapanınca) OTOMATİK çalışır."""
+        try:
+            if os.path.exists(self.path_to_clean):
+                shutil.rmtree(self.path_to_clean, ignore_errors=True)
+                print(f"[TEMİZLİK] Oturum kapandı, klasör silindi: {self.path_to_clean}")
+        except:
+            pass
+
 # --- İZOLASYON AYARLARI ---
 if "user_data_path" not in st.session_state:
     st.session_state.user_data_path = tempfile.mkdtemp()
     st.session_state.user_db_path = os.path.join(st.session_state.user_data_path, "chroma_db")
     st.session_state.user_pdf_path = os.path.join(st.session_state.user_data_path, "data")
     os.makedirs(st.session_state.user_pdf_path, exist_ok=True)
+    
+    # Sekme açıldığında bu temizleyiciyi session_state'e bağlıyoruz
+    st.session_state.auto_cleaner = SessionCleaner(st.session_state.user_data_path)
 
 st.set_page_config(page_title="Second Brain AI V2", layout="wide")
 
-st.info("💡 **GÜVENLİK NOTU:** Bu oturum tamamen izoledir. Yüklediğiniz dökümanlar sadece size özel geçici bellekte tutulur.")
+st.info("💡 **GÜVENLİK NOTU:** Bu oturum tamamen izoledir. Yüklediğiniz dökümanlar sadece size özel geçici bellekte tutulur ve **sekme kapandığında otomatik olarak imha edilir.**")
 
 st.title("Second Brain V2 - Agentic RAG 🌐")
 
