@@ -3,14 +3,14 @@ import time
 import streamlit as st # Streamlit eklendi
 from functools import partial
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+# HuggingFace yerine OpenAI Embeddings import ediyoruz
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
 from google.api_core.exceptions import ResourceExhausted
 
 load_dotenv()
@@ -21,7 +21,8 @@ os.environ['USER_AGENT'] = "SecondBrain/1.0"
 @st.cache_resource
 def get_embedding_model():
     """Embedding modelini belleğe bir kez yükler ve orada tutar."""
-    return HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
+    # Eski 768 boyutlu HF modeli yerine 1536 boyutlu OpenAI modeline geçtik
+    return OpenAIEmbeddings(model="text-embedding-3-small")
 
 # Modeli her seferinde baştan oluşturmak yerine cache'den çekiyoruz
 embedding = get_embedding_model()
@@ -91,7 +92,7 @@ def guard_route(user_input):
     1. Eğer soru kompleks bir soru ise "AGENT" dön.
     2. Eğer soru selamlaşma (merhaba, nasılsın), sistemin ne olduğu veya genel sohbet ise SADECE "SIMPLE" dön.
     
-    Sadece tek bir kelime dön.
+    Sadece tek Kelime dön.
     """  
     try:
         decision = guard_llm.invoke(bekci_prompt).content.strip().upper()
