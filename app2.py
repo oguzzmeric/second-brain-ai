@@ -55,6 +55,8 @@ with st.sidebar:
     if st.button("Sistemi Güncelle"):
         if uploaded_files:
             with st.spinner("Dosyalar size özel alanda işleniyor..."):
+                os.makedirs(st.session_state.user_pdf_path, exist_ok=True)
+                # Eski dosyaları temizle ve yeni dosyaları kaydet
                 for file in os.listdir(st.session_state.user_pdf_path):
                     os.remove(os.path.join(st.session_state.user_pdf_path, file))
                 
