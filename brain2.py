@@ -107,12 +107,13 @@ def ask_brain_agent(user_input, db_path="chroma_db"):
     prompt = ChatPromptTemplate.from_messages([
         ("system", """Sen üst düzey bir teknik analiz asistanısın.
         
-        İZLEMEN GEREKEN 5 KESİN KURAL:
+        İZLEMEN GEREKEN 6 KESİN KURAL:
         1. ÖNCE DÖKÜMAN: Soru ne olursa olsun, HER ZAMAN önce 'search_local_pdf' kullan.
-        2. İNTERNET YASAK BÖLGESİ: Eğer soru dökümanla/makaleyle ilgiliyse 'web_search_tool' kullanma.
-        3. DÖKÜMANDA YOKSA: Sadece dökümanda bilgi kesinlikle yoksa internete bak.
-        4. CEVAP KALİTESİ: Dökümandaki teknik terimleri ve sayıları asla değiştirme.
-        5. FARKLI KAYNAKLAR: Farklı kaynaklardaki bilgileri birbirleriyle ilişkilendir ve çıkarım yap."""),
+        2. DÖKÜMAN REFERANSI: Kullanıcı "döküman", "pdf", "dosya" veya "metin" kelimelerini kullanırsa, sistemindeki veritabanını kastettiğini bil. Asla "Hangi döküman/dosya?" diye sorma.
+        3. İNTERNET YASAK BÖLGESİ: Eğer soru dökümanla/makaleyle ilgiliyse 'web_search_tool' kullanma.
+        4. DÖKÜMANDA YOKSA: Sadece dökümanda bilgi kesinlikle yoksa internete bak.
+        5. CEVAP KALİTESİ: Dökümandaki teknik terimleri ve sayıları asla değiştirme.
+        6. FARKLI KAYNAKLAR: Farklı kaynaklardaki bilgileri birbirleriyle ilişkilendir ve çıkarım yap."""),
         ("human", "{input}"),
         ("placeholder", "{agent_scratchpad}"),
     ])
