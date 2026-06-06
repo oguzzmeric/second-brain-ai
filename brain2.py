@@ -40,7 +40,7 @@ web_search_tool = DuckDuckGoSearchRun(
 
 @tool
 def read_web_page(url: str) -> str:
-    """İnternet aramasından çıkan bir URL'in içeriğini okumak için kullanılır."""
+    """SADECE ve SADECE kullanıcının sağladığı geçerli bir 'http...' internet linki (URL) varsa bu aracı kullan. Elinde URL yoksa ASLA kullanma."""
     try:
         loader = WebBaseLoader(url)
         data = loader.load()
@@ -75,6 +75,29 @@ def search_local_pdf(query: str, db_path: str = "chroma_db") -> str:
         return "\n---\n".join(formatted_docs)
     else:
         return "Dökümanda bu konuyla ilgili bilgi bulunamadı."
+
+def get_document_names(db_path: str = "chroma_db") -> str:
+    """Sisteme yüklenen dökümanları, isimlerini, sayfa sayılarını gibi bilgileri verir."""
+    colection_name = "second_brain_collection"
+    vector_db = Chroma(
+        persist_directory=db_path,
+        embedding_function=embedding,
+        collection_name=colection_name
+    )
+
+    db_data = vector_db.get(include=["metadatas", "documents"])
+    metadatas = db_data.get("metadatas", [])
+    if not metadatas:
+        return "Sistemde yüklü döküman bulunamadı."
+    
+    unique_docs = set()
+    for meta in metadatas:
+        source = meta.get("source")
+        if source:
+            unique_docs.add(os.path.basename(source))
+    
+    return "sistemde yüklü dökümanlar:\n" + "\n".join(unique_docs)
+    
 
 # --- HİBRİT YÖNLENDİRİCİ (GUARD ROUTE) ---
 def guard_route(user_input):
@@ -131,7 +154,12 @@ def ask_brain_agent(user_input, db_path="chroma_db"):
         # Dışarıdaki db_path'i kullanacak
         return search_local_pdf(query, db_path=db_path)
     # Güncel tool listesi
-    current_tools = [configured_search_tool, web_search_tool, read_web_page]
+    @tool
+    def list_documents_tool(query: str = "liste") -> str:
+        """Sistemde HANGİ dökümanların, dosyaların veya PDF'lerin yüklü olduğunu, bunların isimlerini sorarsa KESİNLİKLE bu aracı kullan."""
+        return get_document_names(db_path=db_path)
+
+    current_tools = [configured_search_tool, list_documents_tool, web_search_tool, read_web_page]
 
     llm_with_tools = llm.bind_tools(current_tools)
     agent = create_tool_calling_agent(llm_with_tools, current_tools, prompt)
