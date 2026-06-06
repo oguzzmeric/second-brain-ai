@@ -143,7 +143,8 @@ def ask_brain_agent(user_input, db_path="chroma_db"):
         3. İNTERNET YASAK BÖLGESİ: Soru spesifik olarak "yüklü dökümanlarla" ilgiliyse internet (web_search_tool) KESİNLİKLE yasaktır. Dökümanda yoksa "Dökümanda bulamadım" de ve konuyu kapat.
         4. İNTERNETE ÇIKIŞ İZNİ: SADECE kullanıcı genel bir soru soruyorsa ve bu bilgi dökümanlarda kesinlikle yoksa internete (web_search_tool) bak.
         5. VERİ SADAKATİ: Veritabanından çektiğin metinlerdeki sayıları, formülleri ve teknik terimleri asla değiştirme, olduğu gibi aktar.
-        6. ÇIKARIM VE İLİŞKİLENDİRME: Farklı dökümanlardan veya parçalardan (chunk) gelen bilgileri sentezle, birbiriyle ilişkilendir ve profesyonel bir çıkarım yap."""),
+        6. VARLIK (ENTITY) KORUMASI: Farklı dökümanlardan bilgi çekerken kişileri, kurumları veya projeleri ASLA birbirine karıştırma. Eğer kullanıcı belirli bir kişinin (örn: Oğuz'un) eğitimini soruyorsa ve dökümanda o kişinin eğitimi yoksa, sistemdeki BAŞKA birinin eğitim bilgisini (örn: ODTÜ 1993) ona atfetme.
+        7. BİLMİYORUM DEME ERDEMİ: Bir soruya ait net bir eşleşme bulamazsan çıkarım yapmaya veya boşluk doldurmaya zorlama. Direkt olarak "Dökümanlarda bu kişinin/konunun özelinde spesifik bir bilgi bulamadım" de."""),
         ("human", "{input}"),
         ("placeholder", "{agent_scratchpad}"),
     ])
