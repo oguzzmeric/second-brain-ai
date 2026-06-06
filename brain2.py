@@ -12,6 +12,7 @@ from langchain_community.document_loaders import WebBaseLoader
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 from dotenv import load_dotenv
 from google.api_core.exceptions import ResourceExhausted
+from langchain_core.prompts import MessagesPlaceholder
 
 load_dotenv()
 
@@ -78,12 +79,13 @@ def search_local_pdf(query: str, db_path: str = "chroma_db") -> str:
 
 def get_document_names(db_path: str = "chroma_db") -> str:
     """Sisteme yüklenen dökümanları, isimlerini, sayfa sayılarını gibi bilgileri verir."""
-    colection_name = "second_brain_collection"
+    collection_name = "second_brain_collection"
     vector_db = Chroma(
         persist_directory=db_path,
         embedding_function=embedding,
-        collection_name=colection_name
+        collection_name=collection_name
     )
+
 
     db_data = vector_db.get(include=["metadatas", "documents"])
     metadatas = db_data.get("metadatas", [])
@@ -148,12 +150,13 @@ def ask_brain_agent(user_input, db_path="chroma_db"):
 
     # Kritik Kısım: search_local_pdf aracına db_path'i önceden enjekte ediyoruz.
     # Bu sayede Agent, arama yaparken otomatik olarak doğru klasöre bakacak.
+    
     @tool
     def configured_search_tool(query: str) -> str:
         """Yalnızca yüklü olan teknik dökümanlarda (PDF) detaylı arama yapar."""
         # Dışarıdaki db_path'i kullanacak
         return search_local_pdf(query, db_path=db_path)
-    # Güncel tool listesi
+    
     @tool
     def list_documents_tool(query: str = "liste") -> str:
         """Sistemde HANGİ dökümanların, dosyaların veya PDF'lerin yüklü olduğunu, bunların isimlerini sorarsa KESİNLİKLE bu aracı kullan."""
