@@ -32,7 +32,7 @@ def run_ingestion(source_dir="data/", persist_dir="chroma_db"):
             print(f"[HATA] {pdf} okunurken sorun çıktı: {e}")
 
     # 4. Chunking 
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=300)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=400)
     chunks = text_splitter.split_documents(all_docs)
     
     if not chunks:
